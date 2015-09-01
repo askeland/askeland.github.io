@@ -41,22 +41,47 @@
 			<!-- Any section element inside of this container is displayed as a slide -->
 			<div class="slides">
 				<section data-background="#199C87">
-					<div style="background-color: #fff; width: 100%; height: 400%; position: absolute; top: -100%; right: -65%; z-index: -1;"></div>
-					<div>
-						<div style="width: 60%; display: block; margin-right: 5%; vertical-align: top;">
-							<h1>Retrofit</h1>
-							<h2>mobil REST på 1-2-3</h3>
-						</div>
-                        <div style="width: 40%; display: block;">
-                        </div>
+                    <div id="main-bg" style="position: relative;">
+                    	<div style="width: 60%; height: 100%; position: absolute; left: 0">
+                    		<div style="position: absolute; height: 300px; width: 600px; top: 50%; right: 100px; margin-top: -150px;">
+                    			<h1>Retrofit</h1>
+								<p><b>- mobil REST på 1-2-3</b></p>
+                    		</div>
+                    		<img src="http://www.knowitgroup.com/PageFiles/1723/knowit_logo_white_rgb.png" style="height: 40px; left: 140px; bottom: 20px; position: absolute; border:0; background-color: inherit; box-shadow: 0 0 0 0;"/>
+                    	</div>
+                    	<div style="width: 40%; height: 100%; background: #fff; position: absolute; right: 0">
+                    		<div style="position: absolute; height: 400px; width: 300px; top: 50%; left: 100px; margin-top: -200px;">
+								<img style="border-radius: 100px;" src="http://graph.facebook.com/v2.3/500934476/picture?width=200&amp;height=200">                   		
+                    			<p style="color: #222; margin-top: -20px;">
+                    				Christian Askeland<br />
+                    				<small><a href="http://twitter.com/kokeboken">@kokeboken</a></small>
+                    			</p>
+                    		</div>
+                    	</div>
                     </div>
+                    
+                    <aside class="notes">
+                    	<ul>
+        				<li>Hei, jeg heter Christian Askeland og jeg jobber som mobilutvikler hos Knowit. Jeg har de siste månedene jobbet properitær og lukket teknologi. Jeg har utviklet RuterReise for iOS som ble lansert forrige uke og har da hovedsakelig jobbet med Swift. MEN, jeg har heldigvis også fått tid til å utvikle på Android ved siden av og forhåpentligvis kan jeg dele litt av mine erfaringer med dere her i dag.</li>
+        				</ul>
+    				</aside>
+    
 				</section>
 				
 				<section data-background="http://images.clipartpanda.com/heart-clip-art-valentine_heart_29-1969px.png" data-background-size="700px" data-background-transition="zoom">
 					<!-- <img style="position:absolute; top: 0; height: 80%; left: 50%; margin-left: -15%; z-index: -1; border: 0; box-shadow:0; background-color: inherit;" src="http://images.clipartpanda.com/heart-clip-art-valentine_heart_29-1969px.png"/>-->
 					<h2>Mobilapps</h2>
 					<h2>+</h2>
-					<h2>INTERNETT</h2>			
+					<h2>INTERNETT</h2>
+					
+					<aside class="notes">
+                    	<ul>
+        				<li>Mobilapper og internett går gjerne hånd i hånd. Vi laster ned data, deler bilder, chatter med venner og swiper til høyre.</li>
+        				<li>Dette skjer gjerne via offentlige eller private API’er med veldifinerte datastrukturer. Av og til i alle fall.</li> 
+        				<li>Kommunikasjon og deling av data er så viktig og som utvikler burde man nesten forvente at mobilen kunne hente data på en enkel måte, men det er dessverre ikke alltid tilfelle.</li> 
+						<li>Helt siden jeg skrev min første Android app til Android 2.2 har jeg følt smerten ved håndtering av tråder, feilhåndtering, parsing av JSON og et femtitalls linjer med boilerplate før det “skjer noe”. Heldigvis fant jeg Retrofit</li>
+						</ul>
+    				</aside>			
 				</section>
 				
 				<section>
@@ -64,6 +89,15 @@
 					<blockquote cite="http://square.github.io/retrofit/">
 						&ldquo;Retrofit turns your REST API into a Java interface.&rdquo;
 					</blockquote>
+					
+					<aside class="notes">
+                    	<ul>
+        				<li>Dette er slik Retrofit beskriver seg selv på nettsiden sin, og min første tanke da jeg så det var, “Hmm, javel… Det hørtes jo ok ut, men hva betyr det egentlig?”</li>
+        				<li>Fakta er at det faktisk er ganske enkelt, da hovedideen bak Retrofit er at den tar et eksternt API og gjør det om (mapper det) til et Java grensesnitt, slik at du kan kalle eksterne webtjenester akkurat slik du kaller metoder i Java-koden din.</li>
+        				<li>Jeg skal vise dere hvordan Retrofit får mobilapplikasjonen din til å kommunisere med Internett-omverdenen til en lek.</li>
+						<li>Jeg må advare dere om at det kommer til å vises en del kode i slidene nå, men det er fordi jeg i stedet for å bare fortelle dere hvor kult og enkelt Retrofit er, faktisk heller vil vise dere det.</li>
+						</ul>
+    				</aside>
 				</section>
 
 				<section>
@@ -77,6 +111,8 @@
 				</section>
 				
 				<section>
+					
+					<p><code data-trim>GET http://myapi.com/movie/1337</code></p>
 					
 					<pre class="hljs java">
 public interface MovieService {
@@ -157,7 +193,7 @@ List< MovieRating> getRatings(@Path("id") int movieId);
 					
 					<pre class="fragment"><code data-trim>
 @GET("/user")
-User addRating(@Header("Authorization") String authorization);
+User getUser(@Header("Authorization") String authorization);
 					</code></pre>
 				</section>
 				
@@ -281,6 +317,22 @@ public class Movie {
 					{ src: 'plugin/notes/notes.js', async: true }
 				]
 			});
+			
+			Reveal.addEventListener( 'ready', function( event ) {
+				var w = window,
+			    d = document,
+			    e = d.documentElement,
+			    g = d.getElementsByTagName('body')[0],
+			    x = w.innerWidth || e.clientWidth || g.clientWidth,
+			    y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+				
+			    // event.currentSlide, event.indexh, event.indexv
+			    var bg = document.getElementById("main-bg")
+			    bg.style.height = y + "px"
+			    bg.style.width = x + "px"
+			    bg.style.marginLeft = -((x - 960) / 2) + "px"
+			    bg.style.marginTop = (-((y - 700) / 2) -20) + "px"
+			} );
 
 		</script>
 
