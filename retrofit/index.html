@@ -70,14 +70,14 @@
 				
 				<section data-background="http://images.clipartpanda.com/heart-clip-art-valentine_heart_29-1969px.png" data-background-size="700px" data-background-transition="zoom">
 					<!-- <img style="position:absolute; top: 0; height: 80%; left: 50%; margin-left: -15%; z-index: -1; border: 0; box-shadow:0; background-color: inherit;" src="http://images.clipartpanda.com/heart-clip-art-valentine_heart_29-1969px.png"/>-->
-					<h2>Mobilapps</h2>
+					<h2>MOBILE APPS</h2>
 					<h2>+</h2>
-					<h2>INTERNETT</h2>
+					<h2>INTERNET</h2>
 					
 					<aside class="notes">
                     	<ul>
         				<li>Mobilapper og internett går gjerne hånd i hånd. Vi laster ned data, deler bilder, chatter med venner og swiper til høyre.</li>
-        				<li>Dette skjer gjerne via offentlige eller private API’er med veldifinerte datastrukturer. Av og til i alle fall.</li> 
+        				<li>Dette skjer gjerne via HTTP API’er med veldifinerte datastrukturer. Av og til i alle fall.</li> 
         				<li>Kommunikasjon og deling av data er så viktig og som utvikler burde man nesten forvente at mobilen kunne hente data på en enkel måte, men det er dessverre ikke alltid tilfelle.</li> 
 						<li>Helt siden jeg skrev min første Android app til Android 2.2 har jeg følt smerten ved håndtering av tråder, feilhåndtering, parsing av JSON og et femtitalls linjer med boilerplate før det “skjer noe”. Heldigvis fant jeg Retrofit</li>
 						</ul>
@@ -87,7 +87,7 @@
 				<section>
 					<h2>RETROFIT</h2>
 					<blockquote cite="http://square.github.io/retrofit/">
-						&ldquo;Retrofit turns your REST API into a Java interface.&rdquo;
+						&ldquo;Retrofit turns your HTTP API into a Java interface.&rdquo;
 					</blockquote>
 					
 					<aside class="notes">
@@ -219,7 +219,7 @@ RestAdapter restAdapter = new RestAdapter.Builder()
 				</section>
 				
 				<section>
-						<h4>SYNCHRONOUS VS. ASYNCHRONOUS VS. OBSERVABLE</h4>
+						<h4>SYNCHRONOUS VS. ASYNCHRONOUS</h4>
 						
 						<pre><code data-trim>
 @GET("/movie/{id}")
@@ -229,11 +229,6 @@ Movie getMovie(@Path("id") int movieId);
 					<pre class="fragment"><code data-trim>
 @GET("/movie/{id}")
 void getMovie(@Path("id") int movieId, Callback< Movie > cb);
-					</code></pre>
-					
-					<pre class="fragment java"><code data-trim>
-@GET("/movie/{id}")
-Observable< Movie > getMovie(@Path("id") int movieId);
 					</code></pre>
 					
 				</section>
@@ -283,9 +278,12 @@ public class Movie {
 					</code></pre>
 				</section>
 				
-				<section>
+				<section data-background="http://i.giphy.com/10xZU9b7JBx14s.gif">
 					<h2>Takk for meg!</h2>
 					<p>Kom gjerne å snakk med meg etterpå :)</p>
+				</section>
+				
+				<section data-background="http://i.giphy.com/13GKP7xGjce5oI.gif">
 				</section>
 
 			</div>
