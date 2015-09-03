@@ -143,7 +143,7 @@ Movie movie = service.getMovie(1337);
 @GET("/movie/{id}?include_cast=true")
 Movie getMovie(@Path("id") int movieId);
 
-// Ex: http://myapi.com/movie/1337?include_cast=true
+// GET /movie/1337?include_cast=true HTTP/1.1
 					</code></pre>
 					
 					<pre class="fragment"><code data-trim>
@@ -151,7 +151,7 @@ Movie getMovie(@Path("id") int movieId);
 Movie getMovie(@Path("id") int movieId, 
 	@Query("include_cast") boolean includeCast);
 	
-// Ex: http://myapi.com/movie/1337?include_cast=true
+// GET /movie/1337?include_cast=true HTTP/1.1
 					</code></pre>
 					
 					<pre class="fragment java"><code data-trim>
@@ -165,35 +165,51 @@ Movie getMovie(@Path("id") int movieId,
 				<section>
 						<h4>POST</h4>
 						
-						<pre><code data-trim>
-@POST("/movie/{id}/rating")
-void addRating(@Path("id") int movieId, 
-	@Body MovieRating rating);
-					</code></pre>
+						<pre class="hljs java">
+<span class="fragment highlight-current-green hljs-annotation">@POST</span>(<span class="hljs-string">"/movie/{id}/rating"</span>)
+<span class="hljs-keyword">void</span> <span class="hljs-title">addRating</span>(<span class="hljs-annotation">@Path</span>(<span class="hljs-string">"id"</span>) int movieId, 
+	<span class="fragment highlight-current-green hljs-annotation">@Body</span> MovieRating rating);
+	
+<span class="fragment highlight-current hljs-comment">// POST /movie/1337/rating
+// Content-Length: 28
+//
+// { "id": 1337, "rating": 10 }</span></pre>
 					
-					<pre class="fragment"><code data-trim>
-@FormUrlEncoded
-@POST("/movie/rating")
-void addRating(@Field("id") String movieId, 
-	@Field("rating") String rating);
-					</code></pre>
+					<pre class="fragment hljs java">
+<span class="fragment highlight-current-green hljs-annotation">@FormUrlEncoded</span>
+<span class="hljs-annotation">@POST</span>(<span class="hljs-string">"/login"</span>)
+<span class="hljs-keyword">void</span> <span class="hljs-title">loginUser</span>(<span class="fragment highlight-current-green">@Field("username")</span> String username, 
+	<span class="fragment highlight-current-green">@Field("password")</span> String password);
+	
+<span class="fragment highlight-current hljs-comment">// POST /login
+// Content-Length: 27
+// Content-Type: application/x-www-form-urlencoded
+//
+// username=ping&password=pong</span></pre>
 				</section>
 				
 				<section>
 						<h4>HEADERS</h4>
 						
-						<pre><code data-trim>
+						<pre class="java"><code data-trim>
 @Headers({
     "X-AppLanguage: no",
     "User-Agent: JavaZone-Is-Awesome"
 })						
 @GET("/movie/{id}/ratings")
 List< MovieRating> getRatings(@Path("id") int movieId);
+
+// GET /movie/1337/rating HTTP/1.1
+// X-AppLanguage: no
+// User-Agent: JavaZone-Is-Awesome
 					</code></pre>
 					
 					<pre class="fragment"><code data-trim>
 @GET("/user")
 User getUser(@Header("Authorization") String authorization);
+
+// GET /user HTTP/1.1
+// Authorization: MY_SECRET_TOKEN
 					</code></pre>
 				</section>
 				
@@ -279,8 +295,14 @@ public class Movie {
 				</section>
 				
 				<section data-background="http://i.giphy.com/10xZU9b7JBx14s.gif">
+					<section>
 					<h2>Takk for meg!</h2>
 					<p>Kom gjerne å snakk med meg etterpå :)</p>
+					</section>
+					<section>
+						<h2>Retrofit 2</h2>
+						<p><a href="https://speakerdeck.com/jakewharton/simple-http-with-retrofit-2-droidcon-nyc-2015">DroidCon NYC 2015</a> by Jake Wharton
+					</section>
 				</section>
 				
 				<section data-background="http://i.giphy.com/13GKP7xGjce5oI.gif">
