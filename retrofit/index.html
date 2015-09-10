@@ -69,15 +69,14 @@
 				</section>
 				
 				<section data-background="http://images.clipartpanda.com/heart-clip-art-valentine_heart_29-1969px.png" data-background-size="700px" data-background-transition="zoom">
-					<!-- <img style="position:absolute; top: 0; height: 80%; left: 50%; margin-left: -15%; z-index: -1; border: 0; box-shadow:0; background-color: inherit;" src="http://images.clipartpanda.com/heart-clip-art-valentine_heart_29-1969px.png"/>-->
 					<h2>MOBILE APPS</h2>
 					<h2>+</h2>
 					<h2>INTERNET</h2>
 					
 					<aside class="notes">
                     	<ul>
-        				<li>Mobilapper og internett går gjerne hånd i hånd. Vi laster ned data, deler bilder, chatter med venner og swiper til høyre.</li>
-        				<li>Dette skjer gjerne via HTTP API’er med veldifinerte datastrukturer. Av og til i alle fall.</li> 
+        				<li>Vi laster ned data, deler bilder, chatter med venner og swiper til høyre.</li>
+        				<li>Dette skjer gjerne via HTTP API’er, og idag snakker man da om REST og JSON.</li> 
         				<li>Kommunikasjon og deling av data er så viktig og som utvikler burde man nesten forvente at mobilen kunne hente data på en enkel måte, men det er dessverre ikke alltid tilfelle.</li> 
 						<li>Helt siden jeg skrev min første Android app til Android 2.2 har jeg følt smerten ved håndtering av tråder, feilhåndtering, parsing av JSON og et femtitalls linjer med boilerplate før det “skjer noe”. Heldigvis fant jeg Retrofit</li>
 						</ul>
@@ -139,26 +138,23 @@ Movie movie = service.getMovie(1337);
 					
 					<h4>Query parameters</h4>
 					
-					<pre><code data-trim>
-@GET("/movie/{id}?include_cast=true")
-Movie getMovie(@Path("id") int movieId);
+					<pre class="hljs java">
+<span class="hljs-annotation">@GET</span>(<span class="hljs-string">"/movie/{id}<span class="fragment highlight-current-green hljs-string">?include_cast=true</span>"</span>)
+Movie <span class="hljs-title">getMovie</span>(<span class="hljs-annotation">@Path</span>(<span class="hljs-string">"id"</span>) int movieId);
 
-// GET /movie/1337?include_cast=true HTTP/1.1
-					</code></pre>
+<span class="hljs-comment">// GET /movie/1337<span class="fragment highlight-current-green">?include_cast=true</span> HTTP/1.1</span></pre>
 					
-					<pre class="fragment"><code data-trim>
-@GET("/movie/{id}")
-Movie getMovie(@Path("id") int movieId, 
-	@Query("include_cast") boolean includeCast);
+					<pre class="fragment hljs java">
+<span class="hljs-annotation">@GET</span>(<span class="hljs-string">"/movie/{id}"</span>)
+Movie <span class="hljs-title">getMovie</span>(<span class="hljs-annotation">@Path</span>(<span class="hljs-string">"id"</span>) int movieId, 
+	<span class="fragment highlight-current-green">@Query("include_cast")</span> boolean includeCast);
 	
-// GET /movie/1337?include_cast=true HTTP/1.1
-					</code></pre>
+<span class="hljs-comment">// GET /movie/1337<span class="fragment highlight-current-green">?include_cast=true</span> HTTP/1.1</span></pre>
 					
-					<pre class="fragment java"><code data-trim>
-@GET("/movie/{id}")
-Movie getMovie(@Path("id") int movieId,  
-	@QueryMap Map< String, String> options);
-					</code></pre>
+					<pre class="fragment hljs java">
+<span class="hljs-annotation">@GET</span>(<span class="hljs-string">"/movie/{id}"</span>)
+Movie <span class="hljs-title">getMovie</span>(<span class="hljs-annotation">@Path</span>(<span class="hljs-string">"id"</span>) int movieId,   
+	<span class="fragment highlight-current-green">@QueryMap Map< String, String></span> options);</pre>
 				
 				</section>
 				
@@ -191,40 +187,37 @@ Movie getMovie(@Path("id") int movieId,
 				<section>
 						<h4>HEADERS</h4>
 						
-						<pre class="java"><code data-trim>
-@Headers({
+						<pre class="hljs java">
+<span class="fragment highlight-current-green">@Headers({
     "X-AppLanguage: no",
     "User-Agent: JavaZone-Is-Awesome"
-})						
-@GET("/movie/{id}/ratings")
-List< MovieRating> getRatings(@Path("id") int movieId);
+})</span>
+<span class="hljs-annotation">@GET</span>(<span class="hljs-string">"/movie/{id}/ratings"</span>)					
+List< MovieRating> getRatings(<span class="hljs-annotation">@Path</span>(<span class="hljs-string">"id"</span>) int movieId);
 
-// GET /movie/1337/rating HTTP/1.1
-// X-AppLanguage: no
-// User-Agent: JavaZone-Is-Awesome
-					</code></pre>
+<span class="hljs-comment">// GET /movie/1337/rating HTTP/1.1
+<span class="fragment highlight-current-green">// X-AppLanguage: no
+// User-Agent: JavaZone-Is-Awesome</span></span></pre>
 					
-					<pre class="fragment"><code data-trim>
-@GET("/user")
-User getUser(@Header("Authorization") String authorization);
+					<pre class="fragment hljs java">
+<span class="hljs-annotation">@GET</span>(<span class="hljs-string">"/user"</span>)
+User <span class="hljs-title">getUser</span>(<span class="fragment highlight-current-green">@Header("Authorization")</span> String authorization);
 
-// GET /user HTTP/1.1
-// Authorization: MY_SECRET_TOKEN
-					</code></pre>
+<span class="hljs-comment">// GET /user HTTP/1.1
+// <span class="fragment highlight-current-green">Authorization: MY_SECRET_TOKEN</span></span></pre>
 				</section>
 				
 				<section>
 						<h4>Request Interceptors</h4>
 						
-						<pre><code data-trim>
-RequestInterceptor requestInterceptor = new RequestInterceptor() {
-    @Override
-    public void intercept(RequestFacade request) {
-        request.addHeader("User-Agent", "JavaZone-Is-Awesome");
-        request.addParameter("token", "MY_APP_TOKEN")
+						<pre class="hljs java">
+RequestInterceptor requestInterceptor = <span class="hljs-keyword">new</span> RequestInterceptor() {
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">public void</span> <span class="hljs-title">intercept</span>(RequestFacade request) {
+        <span class="fragment highlight-current-green">request.addHeader(<span class="hljs-string">"User-Agent"</span>, <span class="hljs-string">"JavaZone-Is-Awesome"</span>);</span>
+        <span class="fragment highlight-current-green">request.addParameter(<span class="hljs-string">"token"</span>, <span class="hljs-string">"MY_APP_TOKEN"</span>);</span>
     }
-};
-					</code></pre>
+};</pre>
 					
 					<pre class="fragment"><code data-trim>
 RestAdapter restAdapter = new RestAdapter.Builder()
@@ -294,10 +287,20 @@ public class Movie {
 					</code></pre>
 				</section>
 				
-				<section data-background="http://i.giphy.com/10xZU9b7JBx14s.gif">
+				<section>
 					<section>
-					<h2>Takk for meg!</h2>
-					<p>Kom gjerne å snakk med meg etterpå :)</p>
+						<h3>Kom ned på Knowit-standen<br /> og snakk med meg om:</h3>
+						<ul>
+							<li>Retrofit 2.0-beta1</li>
+							<li>GSON-parsing av Date-objekter</li>
+							<li>Retrofit og RxJava</li>
+							<li>Været</li>
+							<li>Annet</li>
+						</ul>
+					</section>
+					<section data-background="http://i.giphy.com/10xZU9b7JBx14s.gif">
+						<h2>Takk for meg!</h2>
+						<p>Kom gjerne å snakk med meg etterpå :)</p>
 					</section>
 					<section>
 						<h2>Retrofit 2</h2>
