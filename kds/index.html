@@ -46,7 +46,7 @@
                     	<div style="width: 60%; height: 100%; position: absolute; left: 0">
                     		<div style="position: absolute; height: 300px; width: 600px; top: 50%; right: 100px; margin-top: -150px;">
                     			<h1>Retrofit</h1>
-								<p><b>- mobil REST på 1-2-3</b></p>
+								<p><b>- easy peasy API consumpsion</b></p>
                     		</div>
                     	</div>
                     	<div style="width: 40%; height: 100%; background: #fff; position: absolute; right: 0">
@@ -54,7 +54,8 @@
 								<img style="border-radius: 100px;" src="img/christian_askeland.jpg">                   		
                     			<p style="color: #222; margin-top: -20px;">
                     				Christian Askeland<br />
-                    				<small><a href="http://twitter.com/kokeboken">@kokeboken</a></small>
+                                    <small>Knowit Objectnet<br />
+                    				<a href="http://twitter.com/kokeboken">@kokeboken</a></small>
                     			</p>
                     		</div>
                     	</div>
@@ -252,8 +253,9 @@ Movie movie = call.excute();
 					</code></pre>
                     
                     <pre class="fragment"><code data-trim>
-Call&lt;Movie> call = service.getMovie(1337);
-call.enqueue(new Callback&lt;Movie>(){
+Call&lt;Movie> call2 = call.clone();
+
+call2.enqueue(new Callback&lt;Movie>(){
     @Override
     public void onResponse(Response&lt;Movie> response, Retrofit retrofit) {}
         
@@ -290,21 +292,22 @@ Retrofit retrofit = new Retrofit.Builder()
 				
 				<section>
 					
-					<h4>Oppsummert</h4>
+					<h4>Summary</h4>
 					
 					<pre><code data-trim>
 public interface MovieService {
     @GET("/movie/{id}")</span>
-    Movie getMovie(@Path("id") int movieId);
+    Call&lt;Movie> getMovie(@Path("id") int movieId);
 }
 
 public static void main(String[] args){
-    RestAdapter restAdapter = new RestAdapter.Builder()
-        .setEndpoint("http://myapi.com")
+    Retrofit retrofit = new Retrofit.Builder()
+        .baseUrl("http://myapi.com")
+        .addConverterFactory(GsonConverterFactory.create())
         .build();
 
-    MovieService service = restAdapter.create(MovieService.class);
-    Movie movie = service.getMovie(1337);
+    MovieService service = retrofit.create(MovieService.class);
+    Movie movie = service.getMovie(1337).execute();
     
     System.out.println("My favourite movie is " + movie.title);	
 }
@@ -321,14 +324,15 @@ public class Movie {
 				
 				<section>
 					<section>
-						<h3>Feedback?</h3>
-						<h2>javazone.no</h2>
-						<p>Program > Torsdag > 15:40 > Retrofit</p>
+						<h3>Feedback or questions?</h3>
+						<h2>Come talk to me!</h2>
+						<p><a href="https://askeland.github.io/kds">askeland.github.io/kds</a></p>
 					</section>
-					<section data-background="http://i.giphy.com/10xZU9b7JBx14s.gif">
-						<h2>Takk for meg!</h2>
-						<p>Kom gjerne å snakk med meg etterpå :)</p>
-					</section>
+                    <section>
+                        <h2>Retrofit 1.9</h2>
+                        <h3><a href="http://2015.javazone.no/details.html?talk=52885d58f543433b4888266967509be10438f4151aadd7fa6b7c0cfc680954f8">Video</a> from JavaZone 2015</h3>
+                        <p><a href="https://askeland.github.io/retrofit">Slides</a></p>
+                    </section>
 					<section>
 						<h2>Retrofit 2</h2>
 						<p><a href="https://speakerdeck.com/jakewharton/simple-http-with-retrofit-2-droidcon-nyc-2015">DroidCon NYC 2015</a> by Jake Wharton
