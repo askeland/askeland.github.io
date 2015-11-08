@@ -277,6 +277,7 @@ call.cancel()
 Retrofit retrofit = new Retrofit.Builder()
     <span class="fragment highlight-current-green">.baseUrl("https://myapi.com")</span>
     <span class="fragment highlight-current-green">.client(new OkHttpClient())</span>
+    <span class="fragment highlight-current-green">.addCallAdapterFactory(RxJavaCallAdapterFactory.create())</span>
     <span class="fragment highlight-current-green">.addConverterFactory(GsonConverterFactory.create())</span>
     .build();
 }</pre>
