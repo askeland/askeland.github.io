@@ -133,7 +133,7 @@ MovieService service = retrofit.create(MovieService.class);
 					
 					<pre class="fragment"><code data-trim>
 Call&lt;Movie> call = service.getMovie(1337);
-Movie movie = call.execute();
+Movie movie = call.execute().body();
 					</code></pre>
 				</section>
 				
@@ -308,7 +308,7 @@ public static void main(String[] args){
         .build();
 
     MovieService service = retrofit.create(MovieService.class);
-    Movie movie = service.getMovie(1337).execute();
+    Movie movie = service.getMovie(1337).execute().body();
     
     System.out.println("My favourite movie is " + movie.title);	
 }
