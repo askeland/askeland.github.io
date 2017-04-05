@@ -6,11 +6,17 @@
 <body>
   <h1 style="color: #FFF">HELLO WORLD!</h1>
   <video id='media'/>
-  <script>
-    window.mediaElement = document.getElementById('media');
-    window.mediaManager = new cast.receiver.MediaManager(window.mediaElement);
-    window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
-    window.castReceiverManager.start();
+  <script type="text/javascript">
+    (function () {
+        var mgr;
+        var bus;
+
+        window.onload = function () {
+            mgr = cast.receiver.CastReceiverManager.getInstance();
+            bus = mgr.getCastMessageBus('urn:x-cast:no.jottacloud.jottacloudphotos.cast');
+            mgr.start();
+        }
+    })();
   </script>
 </body>
 </html>
