@@ -814,7 +814,7 @@ function modify_image(image_src){
       sampleplayer.log_('test test test');
      }
      androidImage.src = i.src;
-     androidImage.setAttribute("display:block;style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
+     androidImage.setAttribute("style", "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
       sampleplayer.fadeIn_(androidImage, 0.5);
    }
    i.src = image_src;
