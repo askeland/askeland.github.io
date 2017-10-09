@@ -803,13 +803,15 @@ function calculateAspectRatioFit(srcWidth, srcHeight) {
 
 
 function modify_image(image_src){
-   var i = new Image();
-   document.getElementById("androidImage").setAttribute("style", "display:none;")
+  var i = new Image();
+  var androidImage = document.getElementById("androidImage");
+  
+  samplePlayer.fadeOut_(androidImage, 0.5);
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
-     document.getElementById("androidImage").src = i.src
-     document.getElementById("androidImage").setAttribute("style",
-      "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
+     androidImage.src = i.src;
+     androidImage.setAttribute("style", "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
+     samplePlayer.fadeIn_(androidImage, 0.5);
    }
    i.src = image_src;
 }
@@ -2062,16 +2064,16 @@ sampleplayer.fadeTo_ = function(element, opacity, time, opt_doneFunc) {
   // the styled media receiver) so it has been uncommented until a better solution
   // can be found.
 
-  // var listener = function() {
-  //   element.style.webkitTransition = '';
-  //   element.removeEventListener('webkitTransitionEnd', listener, false);
+  var listener = function() {
+    element.style.webkitTransition = '';
+    element.removeEventListener('webkitTransitionEnd', listener, false);
     if (opt_doneFunc) {
       opt_doneFunc();
     }
-  // };
-  // element.addEventListener('webkitTransitionEnd', listener, false);
-  // element.style.webkitTransition = 'opacity ' + time + 's';
-  // element.style.opacity = opacity;
+  };
+  element.addEventListener('webkitTransitionEnd', listener, false);
+  element.style.webkitTransition = 'opacity ' + time + 's';
+  element.style.opacity = opacity;
 };
 
 
