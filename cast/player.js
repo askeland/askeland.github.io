@@ -806,12 +806,12 @@ function modify_image(image_src){
   var i = new Image();
   var androidImage = document.getElementById("androidImage");
   
-  samplePlayer.fadeOut_(androidImage, 0.5);
+  sampleplayer.fadeOut_(androidImage, 0.5);
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
      androidImage.src = i.src;
      androidImage.setAttribute("style", "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
-     samplePlayer.fadeIn_(androidImage, 0.5);
+     sampleplayer.fadeIn_(androidImage, 0.5);
    }
    i.src = image_src;
 }
