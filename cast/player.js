@@ -810,14 +810,10 @@ function modify_image(image_src){
   sampleplayer.fadeOut_(androidImage, 0.5);
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
-     androidImage.onLoad = function() {
-       this.log_('androidImage onload_');
-       androidImage.setAttribute("display:block;style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
-      sampleplayer.fadeIn_(androidImage, 0.5);
-     }
-     
      this.log_('i onload_');
      androidImage.src = i.src;
+     androidImage.setAttribute("display:block;style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
+      sampleplayer.fadeIn_(androidImage, 0.5);
    }
    i.src = image_src;
 }
