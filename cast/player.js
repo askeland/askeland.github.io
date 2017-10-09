@@ -811,7 +811,6 @@ function modify_image(image_src){
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
      androidImage.onload = function() {
-      sampleplayer.log_('test test test');
        this.setAttribute("style", "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
        sampleplayer.fadeIn_(this, 0.3);
      }
