@@ -812,14 +812,14 @@ function modify_image(image_src){
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
      androidImage.onload = function() {
        this.setAttribute("style", "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
-       sampleplayer.fadeIn_(this, 0.3);
+       sampleplayer.fadeIn_(this, 0.2);
      }
-     androidImage.src = i.src;
+     sampleplayer.fadeOut_(androidImage, 0.2, function() {
+      androidImage.src = i.src;
+     });
    }
    
-   sampleplayer.fadeOut_(androidImage, 0.25, function() {
-    i.src = image_src;
-   });
+   i.src = image_src;
 }
 
 /**
