@@ -810,7 +810,7 @@ function modify_image(image_src){
      //var androidImage = document.getElementById("androidImage");
      //$("#androidImage").hide();
      //androidImage.src = i.src;
-     $("#androidImage").attr('src', i.src).animate({width: scaledAttr.width, height: scaledAttr.height});
+     $("#androidImage").attr('src', i.src).animate({width: scaledAttr.width, height: scaledAttr.height}, 250);
      //androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
      //$("#androidImage").fadeIn();
    }
