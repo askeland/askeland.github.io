@@ -807,11 +807,12 @@ function modify_image(image_src){
    //document.getElementById("androidImage").setAttribute("style", "display:none;")
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
-     var androidImage = document.getElementById("androidImage");
-     $("#androidImage").hide();
-     androidImage.src = i.src;
-     androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
-     $("#androidImage").fadeIn();
+     //var androidImage = document.getElementById("androidImage");
+     //$("#androidImage").hide();
+     //androidImage.src = i.src;
+     $("#androidImage").src(i.src).animate({width: scaledAttr.width, height: scaledAttr.height});
+     //androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
+     //$("#androidImage").fadeIn();
    }
    i.src = image_src;
 }
