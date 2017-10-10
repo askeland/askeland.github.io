@@ -810,11 +810,13 @@ function modify_image(image_src){
      //var androidImage = document.getElementById("androidImage");
      //$("#androidImage").hide();
      //androidImage.src = i.src;
-     $("#androidImage")
-       .fadeOut()
-       .attr('src', i.src)
-       .animate({width: scaledAttr.width, height: scaledAttr.height}, 0)
-       .fadeIn();
+     $("#androidImage").on('load', function() {
+      $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(300);
+     });
+     
+     $("#androidImage").fadeOut(200, function() {
+      $(this).attr('src', i.src)
+     });
      //androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
      //$("#androidImage").fadeIn();
    }
