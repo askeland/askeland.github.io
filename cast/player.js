@@ -808,10 +808,10 @@ function modify_image(image_src){
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
      var androidImage = document.getElementById("androidImage");
-     $(androidImage).hide();
+     $("#androidImage").hide();
      androidImage.src = i.src;
      androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
-     $(androidImage).fadeIn();
+     $("#androidImage").fadeIn();
    }
    i.src = image_src;
 }
