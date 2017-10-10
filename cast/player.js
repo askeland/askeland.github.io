@@ -813,22 +813,16 @@ function modify_image(image_src){
      var $androidImage = $("#androidImage");
      
      if ($androidImage.width() == newWidth) {
-      $androidImage.attr('src', i.src);
+       $androidImage.attr('src', i.src);
      }
      else {
-     
-     //var androidImage = document.getElementById("androidImage");
-     //$("#androidImage").hide();
-     //androidImage.src = i.src;
-     $androidImage.on('load', function() {
-      $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(100);
-     });
-     
-     $androidImage.fadeOut(100, function() {
-      $(this).attr('src', i.src)
-     });
-     //androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
-     //$("#androidImage").fadeIn();
+       $androidImage.on('load', function() {
+        $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(100);
+       });
+
+       $androidImage.fadeOut(100, function() {
+        $(this).attr('src', i.src)
+       });
      }
    }
    i.src = image_src;
