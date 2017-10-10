@@ -817,10 +817,10 @@ function modify_image(image_src){
      }
      else {
        $androidImage.on('load', function() {
-        $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(0);
+        $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(150);
        });
 
-       $androidImage.fadeOut(0, function() {
+       $androidImage.fadeOut(150, function() {
         $(this).attr('src', i.src)
        });
      }
