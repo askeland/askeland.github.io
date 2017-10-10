@@ -807,18 +807,29 @@ function modify_image(image_src){
    //document.getElementById("Image").setAttribute("style", "display:none;")
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
+     
+     var newHeight = scaledAttr.height;
+     var newWidth = scaledAttr.width;
+     var $androidImage = $("#androidImage");
+     
+     if ($androidImage.width() == newWidth) {
+      $androidImage.attr('src', i.src);
+     }
+     else {
+     
      //var androidImage = document.getElementById("androidImage");
      //$("#androidImage").hide();
      //androidImage.src = i.src;
-     $("#androidImage").on('load', function() {
-      $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(200);
+     $androidImage.on('load', function() {
+      $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(150);
      });
      
-     $("#androidImage").fadeOut(150, function() {
+     $androidImage.fadeOut(150, function() {
       $(this).attr('src', i.src)
      });
      //androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
      //$("#androidImage").fadeIn();
+     }
    }
    i.src = image_src;
 }
