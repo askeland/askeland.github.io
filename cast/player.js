@@ -804,8 +804,7 @@ function calculateAspectRatioFit(srcWidth, srcHeight) {
 
 function modify_image(image_src){
    var i = new Image();
-   //document.getElementById("
-  Image").setAttribute("style", "display:none;")
+   //document.getElementById("Image").setAttribute("style", "display:none;")
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
      //var androidImage = document.getElementById("androidImage");
