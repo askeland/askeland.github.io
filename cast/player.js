@@ -804,13 +804,18 @@ function calculateAspectRatioFit(srcWidth, srcHeight) {
 
 function modify_image(image_src){
    var i = new Image();
-   //document.getElementById("androidImage").setAttribute("style", "display:none;")
+   //document.getElementById("
+  Image").setAttribute("style", "display:none;")
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
      //var androidImage = document.getElementById("androidImage");
      //$("#androidImage").hide();
      //androidImage.src = i.src;
-     $("#androidImage").attr('src', i.src).animate({width: scaledAttr.width, height: scaledAttr.height}, 250);
+     $("#androidImage")
+       .fadeOut()
+       .attr('src', i.src)
+       .animate({width: scaledAttr.width, height: scaledAttr.height}, 0)
+       .fadeIn();
      //androidImage.setAttribute("style", "width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
      //$("#androidImage").fadeIn();
    }
