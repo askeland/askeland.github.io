@@ -67,10 +67,10 @@
   right: 0;
   top: 50%;
   background-image: url("assets/teliasky.png");
-  margin-left: -500px;
-  margin-top: -120px;
-  width: 1000px;
-  height: 240px;
+  margin-left: -400px;
+  margin-top: -96px;
+  width: 800px;
+  height: 192px;
 }
 
 .player .placeholder-image {
