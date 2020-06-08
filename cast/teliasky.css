@@ -82,7 +82,7 @@
   position: absolute;
   width: 100%;
   height: 100%;
-  background-color: #990AE3;
+  background-color: #000;
   background-position: center;
   background-repeat: no-repeat;
 }
@@ -657,7 +657,7 @@
 /* ------------------------------------------------- */
 
 .player[state="idle"] .background {
-  background: #000;
+  background: #990AE3;
 }
 .player[state="idle"] .overlay {
   display: none;
