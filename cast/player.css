@@ -35,7 +35,7 @@
   background: #fff;
 }
 .progressBar {
-  background-color: rgb(157, 96, 235);
+  background-color: #9C61E8;
 }
 .player {
   color: #f1f1f1;
@@ -66,11 +66,11 @@
   left: 50%;
   right: 0;
   top: 50%;
-  background-image: url("assets/jottalogo.png");
-  margin-left: -350px;
-  margin-top: -47px;
-  width: 700px;
-  height: 93px;
+  background-image: url("assets/jottacloud.png");
+  margin-left: -400px;
+  margin-top: -86px;
+  width: 800px;
+  height: 172px;
 }
 
 .player .placeholder-image {
@@ -82,7 +82,7 @@
   position: absolute;
   width: 100%;
   height: 100%;
-  background-color: #ffff;
+  background-color: #000;
   background-position: center;
   background-repeat: no-repeat;
 }
@@ -657,7 +657,7 @@
 /* ------------------------------------------------- */
 
 .player[state="idle"] .background {
-  background: #fff;
+  background: #9C61E8;
 }
 .player[state="idle"] .overlay {
   display: none;
