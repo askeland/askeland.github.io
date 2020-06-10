@@ -804,26 +804,12 @@ function calculateAspectRatioFit(srcWidth, srcHeight) {
 
 function modify_image(image_src){
    var i = new Image();
-   //document.getElementById("Image").setAttribute("style", "display:none;")
+   document.getElementById("androidImage").setAttribute("style", "display:none;")
    i.onload = function() {
      var scaledAttr = calculateAspectRatioFit(i.width, i.height);
-     
-     var newHeight = scaledAttr.height;
-     var newWidth = scaledAttr.width;
-     var $androidImage = $("#androidImage");
-     
-     if ($androidImage.width() == newWidth) {
-       $androidImage.attr('src', i.src);
-     }
-     else {
-       $androidImage.on('load', function() {
-        $(this).animate({width: scaledAttr.width, height: scaledAttr.height}, 0).fadeIn(150);
-       });
-
-       $androidImage.fadeOut(150, function() {
-        $(this).attr('src', i.src)
-       });
-     }
+     document.getElementById("androidImage").src = i.src
+     document.getElementById("androidImage").setAttribute("style",
+      "display:block;width:" + scaledAttr.width + "px;height:" + scaledAttr.height + "px;");
    }
    i.src = image_src;
 }
