@@ -66,11 +66,11 @@
   left: 50%;
   right: 0;
   top: 50%;
-  background-image: url("assets/teliasky.png");
+  background-image: url("assets/teliacloud.png");
   margin-left: -400px;
-  margin-top: -96px;
+  margin-top: -82px;
   width: 800px;
-  height: 192px;
+  height: 164px;
 }
 
 .player .placeholder-image {
@@ -224,7 +224,7 @@
 }
 
 .player .preview-mode-artwork {
-  background-image: url("assets/jottalogo.png");
+  background-image: url("assets/teliacloud.png");
   background-size: cover;
   background-position: bottom;
   background-repeat: no-repeat;
