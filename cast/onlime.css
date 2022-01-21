@@ -36,7 +36,7 @@
   background-image: url("assets/onlime-bg.png");
 }
 .progressBar {
-  background-color: #990AE3;
+  background-color: #80BB4A;
 }
 .player {
   color: #f1f1f1;
@@ -658,7 +658,7 @@
 /* ------------------------------------------------- */
 
 .player[state="idle"] .background {
-  background: #990AE3;
+  background: #80BB4A;
 }
 .player[state="idle"] .overlay {
   display: none;
