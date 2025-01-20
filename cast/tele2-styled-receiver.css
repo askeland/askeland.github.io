@@ -1,0 +1,12 @@
+.background {
+  background-color: #2A4058;
+}
+
+.logo {
+  background: url("assets/tele2.jpg") no-repeat center center fixed; 
+  background-size: cover;
+}
+
+.progressBar {
+  background-color: #2A4058;
+}
