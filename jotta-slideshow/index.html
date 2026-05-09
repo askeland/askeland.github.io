@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>Jottacloud Slideshow</title>
+  <style>
+    /* -------------------------------------------------------------------
+       Jottacloud public-share slideshow.
+
+       Pulls a public album from the Jottacloud Photo API, sorts photos
+       oldest -> newest, then plays them on infinite repeat with a Ken
+       Burns pan/zoom on each slide and a soft crossfade between slides.
+
+       Two stacked <img> layers ping-pong: the active layer plays Ken
+       Burns; the inactive layer preloads the next photo so the swap is
+       instant. The active layer's animation restarts on every slide.
+       ------------------------------------------------------------------- */
+
+    :root {
+      --kb-duration: 14s;    /* must outlive visible-time so motion never freezes */
+      --fade-ms: 2800ms;     /* crossfade between slides — long enough to read as a dissolve */
+      --slide-ms: 6000;      /* ms each photo holds before crossfading; JS reads this */
+      --idle-ms: 2500;       /* ms of mouse-idle before controls hide; JS reads this */
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* The stage holds two slide layers stacked on top of each other. */
+    .stage {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity var(--fade-ms) ease;
+      will-change: opacity;
+    }
+    .slide.is-active { opacity: 1; }
+
+    /* The img is what actually animates with Ken Burns. object-fit:contain
+       keeps the photo whole (no cropping), centered on a black field —
+       the right look for an unattended display.
+
+       To bias toward filling the screen for landscape photos on landscape
+       screens you could switch to object-fit: cover; we deliberately don't,
+       because cropping subjects out of family photos feels wrong. */
+    .slide img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* Ken Burns: animate translate + scale from a random start to a random
+       end. CSS variables are written by JS each slide so every photo gets
+       its own random pan/zoom, keeping the effect from feeling looped. */
+    @keyframes kb {
+      from {
+        transform:
+          translate(var(--kb-x0, 0%), var(--kb-y0, 0%))
+          scale(var(--kb-s0, 1));
+      }
+      to {
+        transform:
+          translate(var(--kb-x1, 0%), var(--kb-y1, 0%))
+          scale(var(--kb-s1, 1.12));
+      }
+    }
+    /* Note: the Ken Burns animation runs whenever .kb-running is on the img,
+       NOT just when the slide is active. If we conditioned on is-active, the
+       outgoing slide would lose its `animation` property the instant the
+       crossfade started — the transform would snap back to identity and the
+       fade would read as a glitch. By keeping the animation running on both
+       layers during the crossfade, motion stays continuous on both photos. */
+    .slide img.kb-running {
+      animation: kb var(--kb-duration) ease-out forwards;
+    }
+
+    /* Respect reduced-motion: skip Ken Burns, keep crossfade subtle. */
+    @media (prefers-reduced-motion: reduce) {
+      .slide img.kb-running { animation: none; }
+      .slide { transition: opacity 600ms linear; }
+    }
+
+    /* --------- Caption (lower-left date + location) --------- */
+    /* The caption lives inside the slide so it inherits the opacity
+       transition — i.e. it crossfades with the photo rather than popping.
+       Layered shadow: a tight near-black halo for outline contrast on
+       bright/busy backgrounds, plus an offset drop shadow so it lifts off
+       even white skies. */
+    .caption {
+      position: absolute;
+      left: 28px;
+      bottom: 24px;
+      max-width: 70vw;
+      color: #fff;
+      /* Date is the primary line — bigger and heavy.
+         Location is sized down via the .where span below. */
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.005em;
+      line-height: 1.15;
+      text-shadow:
+        0 0 3px  rgba(0, 0, 0, 0.95),
+        0 2px 4px rgba(0, 0, 0, 0.9),
+        0 4px 14px rgba(0, 0, 0, 0.55);
+      pointer-events: none;
+      z-index: 4;
+    }
+    .caption .where {
+      font-size: 19px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    @media (max-width: 480px) {
+      .caption {
+        left: 16px;
+        bottom: 64px; /* keep clear of the controls bar on phones */
+        font-size: 22px;
+      }
+      .caption .where { font-size: 16px; }
+    }
+
+    /* --------- Status overlay (loading / error) --------- */
+
+    .status {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .status .pill {
+      padding: 12px 18px;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 999px;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      transition: opacity 300ms ease;
+    }
+    .status.is-visible .pill { opacity: 1; }
+    .status.is-error .pill {
+      background: rgba(140, 25, 25, 0.7);
+    }
+
+    /* --------- Controls bar (auto-hide) --------- */
+
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 999px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+      transition: opacity 350ms ease, transform 350ms ease;
+    }
+    body.is-idle .controls {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 12px);
+    }
+    /* Hide the OS cursor when nothing's been touched in a while. */
+    body.is-idle { cursor: none; }
+
+    .controls button {
+      appearance: none;
+      border: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background-color 150ms ease, transform 150ms ease;
+    }
+    .controls button:hover { background: rgba(255, 255, 255, 0.12); }
+    .controls button:active { transform: scale(0.94); }
+    .controls button:focus-visible {
+      outline: 2px solid #ff7e5f;
+      outline-offset: 2px;
+    }
+    .controls button svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      pointer-events: none;
+    }
+
+    .controls .divider {
+      width: 1px;
+      height: 22px;
+      background: rgba(255, 255, 255, 0.18);
+      margin: 0 4px;
+    }
+
+    .controls input {
+      appearance: none;
+      border: 0;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      border-radius: 999px;
+      width: 130px;
+      outline: none;
+      transition: background-color 150ms ease, width 200ms ease;
+    }
+    .controls input::placeholder { color: rgba(255, 255, 255, 0.5); }
+    .controls input:focus {
+      background: rgba(255, 255, 255, 0.16);
+      width: 170px;
+    }
+
+    /* Native <select> styled to match the rest of the bar. We strip the OS
+       chrome with appearance:none and draw our own chevron via background-
+       image so it stays consistent across Chrome / Safari / Firefox. */
+    .controls select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background:
+        rgba(255, 255, 255, 0.08)
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" fill-opacity="0.7"><path d="M7 10l5 5 5-5z"/></svg>')
+        no-repeat right 6px center / 14px;
+      color: #fff;
+      padding: 8px 24px 8px 12px;
+      font: inherit;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      border-radius: 999px;
+      cursor: pointer;
+      outline: none;
+      transition: background-color 150ms ease;
+    }
+    .controls select:hover { background-color: rgba(255, 255, 255, 0.16); }
+    .controls select:focus-visible {
+      outline: 2px solid #ff7e5f;
+      outline-offset: 2px;
+    }
+    /* The OS-rendered dropdown panel doesn't inherit our dark theme; let it
+       render in default OS colors so options are always readable. */
+    .controls select option { color: #000; background: #fff; }
+
+    /* Hide play icon when playing, pause icon when paused. */
+    .controls[data-playing="true"] .icon-play { display: none; }
+    .controls[data-playing="false"] .icon-pause { display: none; }
+
+    /* --------- Landing (no share id in URL) --------- */
+
+    .landing {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(ellipse at top, #181818, #000 70%);
+      z-index: 8;
+      animation: fadeIn 350ms ease both;
+    }
+    .landing[hidden] { display: none; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .landing-content {
+      width: 100%;
+      max-width: 560px;
+      text-align: center;
+    }
+    .landing h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 14px;
+    }
+    .landing-lede {
+      margin: 0 0 28px;
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    .landing form {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .landing input {
+      flex: 1 1 240px;
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      font: inherit;
+      font-size: 15px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      outline: none;
+      transition: border-color 150ms ease, background-color 150ms ease;
+    }
+    .landing input::placeholder { color: rgba(255, 255, 255, 0.35); }
+    .landing input:focus {
+      border-color: rgba(255, 126, 95, 0.7);
+      background: rgba(255, 255, 255, 0.10);
+    }
+    .landing button {
+      appearance: none;
+      border: 0;
+      background: #ff7e5f;
+      color: #fff;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 14px 22px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 150ms ease, transform 150ms ease;
+    }
+    .landing button:hover { background: #ff8e6f; }
+    .landing button:active { transform: scale(0.98); }
+    .landing .examples {
+      margin-top: 18px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+      line-height: 1.6;
+    }
+    .landing .examples code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .landing-error {
+      margin: 14px 0 0;
+      color: #ff8a73;
+      font-size: 13px;
+      min-height: 1em;
+    }
+
+    /* When the landing is visible, hide the bottom controls — they'd duplicate
+       the input and look noisy on top of the centered hero. */
+    body.is-landing .controls { display: none; }
+    body.is-landing .status   { display: none; }
+
+    /* --------- Mobile tweaks --------- */
+    @media (max-width: 480px) {
+      .controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: calc(100vw - 24px);
+      }
+      .controls input { width: 100px; }
+      .controls input:focus { width: 130px; }
+      .controls button { width: 36px; height: 36px; }
+      .controls select { font-size: 12px; padding: 6px 22px 6px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Two stacked slide layers; JS swaps which one is active each tick.
+       The caption is inside the slide so it fades in/out with the photo. -->
+  <div class="stage" id="stage">
+    <div class="slide" id="slideA"><img alt="" /><div class="caption"></div></div>
+    <div class="slide" id="slideB"><img alt="" /><div class="caption"></div></div>
+  </div>
+
+  <div class="status" id="status" role="status" aria-live="polite">
+    <div class="pill" id="statusMessage">Loading album…</div>
+  </div>
+
+  <!-- Shown when no share id is in the URL hash. The user enters either a
+       bare share id or pastes a full jottacloud.com/share/... URL. -->
+  <div class="landing" id="landing" hidden>
+    <div class="landing-content">
+      <h1>Jottacloud Slideshow maker</h1>
+      <p class="landing-lede">Paste a public Jottacloud share link or its share ID. Photos play on infinite repeat with a soft Ken&nbsp;Burns dissolve.</p>
+      <form id="landingForm" autocomplete="off" spellcheck="false">
+        <input
+          id="landingInput"
+          type="text"
+          placeholder="https://jottacloud.com/share/… or share id"
+          aria-label="Public share link or ID"
+          autocapitalize="none"
+          autocorrect="off"
+        />
+        <button type="submit">Start</button>
+      </form>
+      <p class="landing-error" id="landingError" role="alert"></p>
+      <p class="examples">e.g. <code>https://www.jottacloud.com/share/ja7td7s3</code> &nbsp;or&nbsp; <code>ja7td7s3</code></p>
+    </div>
+  </div>
+
+  <div class="controls" id="controls" data-playing="true">
+    <button id="prevBtn" type="button" aria-label="Previous photo" title="Previous (←)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
+    </button>
+    <button id="playBtn" type="button" aria-label="Play or pause" title="Play / Pause (Space)">
+      <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      <svg class="icon-play"  viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button id="nextBtn" type="button" aria-label="Next photo" title="Next (→)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4L13.2 12z"/></svg>
+    </button>
+    <span class="divider" aria-hidden="true"></span>
+    <select id="orderSelect" aria-label="Sort order" title="Sort order">
+      <option value="asc">Oldest first</option>
+      <option value="desc">Newest first</option>
+      <option value="random">Random</option>
+    </select>
+    <select id="durationSelect" aria-label="Time per slide" title="Time per slide">
+      <option value="3">3s</option>
+      <option value="5">5s</option>
+      <option value="6">6s</option>
+      <option value="8">8s</option>
+      <option value="10">10s</option>
+      <option value="15">15s</option>
+      <option value="30">30s</option>
+      <option value="60">1m</option>
+    </select>
+    <span class="divider" aria-hidden="true"></span>
+    <form id="picker" autocomplete="off" spellcheck="false">
+      <input id="shareInput" type="text" placeholder="share id" aria-label="Public share ID" />
+    </form>
+    <span class="divider" aria-hidden="true"></span>
+    <button id="fsBtn" type="button" aria-label="Toggle fullscreen" title="Fullscreen (F)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h6V3H3v8h2zm14 0v6h2V3h-8v2zM5 19v-6H3v8h8v-2zm14 0h-6v2h8v-8h-2z"/></svg>
+    </button>
+  </div>
+
+  <script>
+    // ============================================================
+    // Configuration
+    // ============================================================
+    const API_BASE       = 'https://api.jottacloud.com/photos/v1/public';
+    const FADE_MS        = 2800;   // must match --fade-ms in CSS
+
+    // User-configurable defaults (overridable via UI, localStorage or URL):
+    const DEFAULT_SLIDE_MS = 6000;
+    const DEFAULT_ORDER    = 'asc';   // 'asc' | 'desc' | 'random'
+
+    const ALLOWED_DURATIONS_S = [3, 5, 6, 8, 10, 15, 30, 60];
+    const ALLOWED_ORDERS = new Set(['asc', 'desc', 'random']);
+
+    // localStorage keys
+    const LS_DURATION = 'jottaSlideshow.duration';
+    const LS_ORDER    = 'jottaSlideshow.order';
+    const IDLE_MS        = 2500;   // hide controls after this much idle time
+
+    // Thumbnail size suffixes per Jotta API docs (.s ≤240, .m ≤720, .l ≤1920)
+    const SUFFIX = { s: '.s', m: '.m', l: '.l' };
+
+    // ============================================================
+    // DOM
+    // ============================================================
+    const $ = (id) => document.getElementById(id);
+    const slides = [$('slideA'), $('slideB')];
+    const dom = {
+      stage:    $('stage'),
+      status:   $('status'),
+      message:  $('statusMessage'),
+      controls: $('controls'),
+      prev:     $('prevBtn'),
+      play:     $('playBtn'),
+      next:     $('nextBtn'),
+      fs:       $('fsBtn'),
+      picker:   $('picker'),
+      input:    $('shareInput'),
+      orderSelect:    $('orderSelect'),
+      durationSelect: $('durationSelect'),
+      landing:       $('landing'),
+      landingForm:   $('landingForm'),
+      landingInput:  $('landingInput'),
+      landingError:  $('landingError'),
+    };
+
+    // ============================================================
+    // State
+    // ============================================================
+    const state = {
+      shareId: null,
+      items: [],          // { src, thumbSrc, captured, place, w, h, filename }
+      photoIdx: 0,        // which photo is currently visible
+      activeLayer: 0,     // 0 = slideA, 1 = slideB
+      playing: true,
+      timer: null,        // setTimeout id for the next advance
+      generation: 0,      // bumped every album load to invalidate stale callbacks
+      slideMs: DEFAULT_SLIDE_MS,
+      order: DEFAULT_ORDER,
+    };
+
+    // ============================================================
+    // Landing show/hide
+    // ============================================================
+    function showLanding(errorMessage) {
+      document.body.classList.add('is-landing');
+      dom.landing.hidden = false;
+      dom.landingError.textContent = errorMessage || '';
+      // Don't steal focus on mobile (the on-screen keyboard would pop up).
+      if (!matchMedia('(pointer: coarse)').matches) {
+        // Defer to next frame so the autofocus works after display change.
+        requestAnimationFrame(() => dom.landingInput.focus());
+      }
+      document.title = 'Jottacloud Slideshow maker';
+    }
+
+    function hideLanding() {
+      document.body.classList.remove('is-landing');
+      dom.landing.hidden = true;
+      dom.landingError.textContent = '';
+    }
+
+    // ============================================================
+    // Status overlay
+    // ============================================================
+    function setStatus(text, { error = false } = {}) {
+      if (!text) {
+        dom.status.classList.remove('is-visible', 'is-error');
+        return;
+      }
+      dom.message.textContent = text;
+      dom.status.classList.toggle('is-error', !!error);
+      dom.status.classList.add('is-visible');
+    }
+
+    // ============================================================
+    // API
+    // ============================================================
+    // `cache: 'no-store'` is deliberate. The JSON response embeds short-lived
+    // signed URLs; serving a cached body after the tokens expire would mean
+    // every image 403s on reload.
+    async function fetchAlbum(shareId) {
+      const res = await fetch(`${API_BASE}/${encodeURIComponent(shareId)}`, {
+        cache: 'no-store',
+        credentials: 'omit',
+      });
+      if (!res.ok) {
+        throw new Error(
+          res.status === 404
+            ? `Album "${shareId}" not found.`
+            : `API error (${res.status})`
+        );
+      }
+      return res.json();
+    }
+
+    // Normalize photos. capturedDate is ms; some photos lack it, so fall
+    // back to timestamp (ns) / 1e6. Sorting/shuffling is done separately
+    // via applyOrder() so the user can switch order without re-fetching.
+    function buildItems(photos) {
+      return (photos || [])
+        .map((p) => {
+          const captured = p.capturedDate || Math.floor(Number(p.timestamp) / 1e6);
+          // geoAddress comes back as either a real string ("Oslo, Norway")
+          // or an empty string. Normalize empty -> null so consumers can
+          // just check truthiness.
+          const place = (p.geoAddress && p.geoAddress.trim()) || null;
+          return {
+            // The lightbox-quality URL: thumbnail_url + '.l' is ≤1920px and
+            // a fraction of the original (file_url can be 50MB+).
+            src:      p.thumbnail_url + SUFFIX.l,
+            thumbSrc: p.thumbnail_url + SUFFIX.s,
+            captured,
+            place,
+            w: p.width,
+            h: p.height,
+            filename: p.filename,
+          };
+        });
+    }
+
+    // Sort/shuffle state.items in place according to `order`. Tries to
+    // preserve the currently-shown photo as the new "current" so changing
+    // order mid-slideshow doesn't yank the user out of context.
+    function applyOrder(order, { resetIndex = false } = {}) {
+      if (!ALLOWED_ORDERS.has(order)) order = DEFAULT_ORDER;
+      state.order = order;
+      const currentSrc = !resetIndex && state.items[state.photoIdx]
+        ? state.items[state.photoIdx].src : null;
+
+      if (order === 'asc') {
+        state.items.sort((a, b) => a.captured - b.captured);
+      } else if (order === 'desc') {
+        state.items.sort((a, b) => b.captured - a.captured);
+      } else if (order === 'random') {
+        // Fisher-Yates: unbiased and O(n).
+        for (let i = state.items.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [state.items[i], state.items[j]] = [state.items[j], state.items[i]];
+        }
+      }
+
+      if (currentSrc) {
+        const idx = state.items.findIndex((it) => it.src === currentSrc);
+        if (idx >= 0) state.photoIdx = idx;
+        else state.photoIdx = 0;
+      } else {
+        state.photoIdx = 0;
+      }
+    }
+
+    // Apply a slide-duration (ms). Updates the CSS variables that drive the
+    // crossfade and Ken Burns motion so they stay in proportion. Ken Burns
+    // must outlive the visible window or the photo freezes mid-display.
+    function applyDuration(ms) {
+      state.slideMs = ms;
+      const kb = ms + FADE_MS + 1500;
+      document.documentElement.style.setProperty('--kb-duration', kb + 'ms');
+    }
+
+    // Format an item's caption: "October 11, 2025" or
+    // "October 11, 2025 in Oslo, Norway".
+    const DATE_FMT = new Intl.DateTimeFormat('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+    function captionHTML(item) {
+      const date = item.captured ? DATE_FMT.format(new Date(item.captured)) : '';
+      if (!date && !item.place) return '';
+      // Build with textContent equivalents — the only HTML we inject is the
+      // span wrapper, never user data, so this stays XSS-safe.
+      const safeDate  = escapeHTML(date);
+      const safePlace = item.place ? escapeHTML(item.place) : '';
+      if (date && safePlace) {
+        return `${safeDate} <span class="where">in ${safePlace}</span>`;
+      }
+      return safeDate || `<span class="where">${safePlace}</span>`;
+    }
+    function escapeHTML(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function setCaption(slide, item) {
+      const el = slide.querySelector('.caption');
+      el.innerHTML = captionHTML(item);
+    }
+
+    // ============================================================
+    // Ken Burns: write CSS variables for a random start/end transform
+    // ============================================================
+    function applyKenBurns(slide) {
+      // Each slide picks its own random pan/zoom so the loop never feels
+      // identical. Numbers are deliberately small — anything bigger
+      // looks like seasickness rather than cinematography.
+      const r = (min, max) => min + Math.random() * (max - min);
+      const startScale = r(1.00, 1.04);
+      const endScale   = startScale + r(0.10, 0.18);   // always zoom in a bit
+      const startX = r(-2, 2);  // %
+      const startY = r(-2, 2);
+      const endX   = r(-5, 5);
+      const endY   = r(-5, 5);
+
+      slide.style.setProperty('--kb-x0', startX + '%');
+      slide.style.setProperty('--kb-y0', startY + '%');
+      slide.style.setProperty('--kb-s0', startScale.toFixed(3));
+      slide.style.setProperty('--kb-x1', endX + '%');
+      slide.style.setProperty('--kb-y1', endY + '%');
+      slide.style.setProperty('--kb-s1', endScale.toFixed(3));
+    }
+
+    // Restart the kb animation on the active slide's <img>. Removing and
+    // re-adding the class would be enough in theory, but a forced reflow
+    // between is what guarantees the animation actually replays.
+    function restartKenBurns(slide) {
+      const img = slide.querySelector('img');
+      img.classList.remove('kb-running');
+      // Force reflow so the next class addition re-triggers the animation.
+       void img.offsetWidth;  // eslint-disable-line no-unused-expressions
+      img.classList.add('kb-running');
+    }
+
+    // ============================================================
+    // Image loading
+    // ============================================================
+    // Load the photo into the given slide's <img>. Returns a promise that
+    // resolves when the image is decoded (or fails). We use `decode()` when
+    // available so the swap-in doesn't cause a frame hitch.
+    //
+    // IMPORTANT: only call this on a slide that is currently HIDDEN (the
+    // inactive layer). Changing the src of a visible <img> would replace the
+    // currently-displayed photo as soon as the new one loads, producing a
+    // visible flicker mid-crossfade.
+    function loadInto(slide, item) {
+      return new Promise((resolve) => {
+        const img = slide.querySelector('img');
+        const onDone = () => resolve();
+        const onError = () => { onTokenError().then(resolve); };
+
+        // If the same src is already loaded, short-circuit.
+        if (img.src === item.src && img.complete && img.naturalWidth) {
+          resolve();
+          return;
+        }
+
+        img.onload = () => {
+          // Prefer decode() to avoid a paint stall on the first frame after
+          // we toggle is-active. decode() can reject on some browsers for
+          // cross-origin images; treat that as success.
+          if (typeof img.decode === 'function') {
+            img.decode().then(onDone, onDone);
+          } else {
+            onDone();
+          }
+        };
+        img.onerror = onError;
+        img.src = item.src;
+      });
+    }
+
+    // Push a photo into the browser's HTTP cache via a throwaway Image
+    // element. Crucially, this does NOT touch either slide layer's <img>,
+    // so it can run safely while a slide is mid-fade. The next advance()
+    // will hit the cache when it calls loadInto on that photo.
+    const _preloadCache = new Map();
+    function preloadToCache(item) {
+      if (!item || _preloadCache.has(item.src)) return;
+      const img = new Image();
+      _preloadCache.set(item.src, img);
+      img.src = item.src;
+    }
+
+    // ============================================================
+    // Token-expiry self-heal
+    // ============================================================
+    // Signed URLs in the API response have a finite TTL; once they expire
+    // every image starts 403'ing. When that happens we re-fetch the album
+    // once and patch the URLs in `state.items` in place.
+    let refreshing = null;
+    async function onTokenError() {
+      if (!state.shareId) return;
+      if (!refreshing) {
+        refreshing = (async () => {
+          try {
+            const album = await fetchAlbum(state.shareId);
+            const fresh = buildItems(album.photos || []);
+            if (fresh.length === state.items.length) {
+              for (let i = 0; i < fresh.length; i++) {
+                state.items[i].src      = fresh[i].src;
+                state.items[i].thumbSrc = fresh[i].thumbSrc;
+              }
+            }
+          } catch (e) {
+            console.warn('Token refresh failed', e);
+          } finally {
+            // small cool-down so a flurry of failures doesn't hammer the API
+            setTimeout(() => { refreshing = null; }, 2000);
+          }
+        })();
+      }
+      return refreshing;
+    }
+
+    // ============================================================
+    // Slideshow loop
+    // ============================================================
+    function clearTimer() {
+      if (state.timer) {
+        clearTimeout(state.timer);
+        state.timer = null;
+      }
+    }
+
+    function scheduleAdvance() {
+      clearTimer();
+      if (!state.playing) return;
+      state.timer = setTimeout(() => advance(1), state.slideMs);
+    }
+
+    // direction = +1 forward, -1 backward
+    async function advance(direction = 1) {
+      if (!state.items.length) return;
+      const gen = state.generation;
+      const nextIdx = ((state.photoIdx + direction) % state.items.length + state.items.length) % state.items.length;
+      const targetLayer = 1 - state.activeLayer;
+      const targetSlide = slides[targetLayer];
+
+      // Load the chosen photo into the (currently invisible) target layer.
+      await loadInto(targetSlide, state.items[nextIdx]);
+      if (gen !== state.generation) return; // album changed underneath us
+
+      // Pick a new Ken Burns motion and play it. Set the caption now (while
+      // the slide is still hidden) so it crossfades in with the photo.
+      applyKenBurns(targetSlide);
+      setCaption(targetSlide, state.items[nextIdx]);
+      slides[state.activeLayer].classList.remove('is-active');
+      targetSlide.classList.add('is-active');
+      restartKenBurns(targetSlide);
+
+      state.activeLayer = targetLayer;
+      state.photoIdx = nextIdx;
+
+      // Preload the photo AFTER this one into the browser cache. We
+      // deliberately do NOT touch the now-hidden slide's <img> here — that
+      // slide is still visibly fading out, and replacing its src would
+      // make the new photo pop into view mid-fade. By preloading via a
+      // throwaway Image, the next advance's loadInto hits cache instantly.
+      const aheadIdx = (nextIdx + 1) % state.items.length;
+      preloadToCache(state.items[aheadIdx]);
+
+      scheduleAdvance();
+    }
+
+    // ============================================================
+    // Playback controls
+    // ============================================================
+    function setPlaying(playing) {
+      state.playing = playing;
+      dom.controls.dataset.playing = String(playing);
+      dom.play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      if (playing) scheduleAdvance();
+      else clearTimer();
+    }
+
+    function togglePlaying() { setPlaying(!state.playing); }
+
+    function manualStep(direction) {
+      // A manual step replaces the scheduled auto-advance with an immediate
+      // one. We keep the playing state as-is.
+      clearTimer();
+      advance(direction);
+    }
+
+    // ============================================================
+    // Album loading
+    // ============================================================
+    async function loadAlbum(shareId) {
+      if (!shareId) return;
+      state.generation++;
+      clearTimer();
+      slides.forEach((s) => s.classList.remove('is-active'));
+      // Don't briefly show the loading pill on top of the landing — only
+      // surface it once we've committed to leaving the landing.
+      if (!dom.landing.hidden) {
+        // Stay on landing for now; we'll either hide it on success or surface
+        // an inline error and remain on the landing.
+      } else {
+        setStatus('Loading album…');
+      }
+
+      try {
+        const album = await fetchAlbum(shareId);
+        const items = buildItems(album.photos);
+        if (!items.length) throw new Error('This album has no photos.');
+
+        state.shareId = shareId;
+        state.items = items;
+        state.photoIdx = 0;
+        state.activeLayer = 0;
+        // Apply the user's chosen order; resetIndex because we just loaded
+        // a fresh album and there's no "current photo" to preserve yet.
+        applyOrder(state.order, { resetIndex: true });
+
+        document.title = (album.title || 'Album') + ' — Jottacloud Slideshow';
+        dom.input.value = shareId;
+
+        // Preload the first photo into slide A and reveal it.
+        await loadInto(slides[0], items[0]);
+        applyKenBurns(slides[0]);
+        setCaption(slides[0], items[0]);
+        slides[0].classList.add('is-active');
+        restartKenBurns(slides[0]);
+        setStatus(null);
+        hideLanding();
+
+        // Warm the cache with photo #2 so the first advance is instant.
+        // (We can't use slide B's <img> for this — it would display the
+        // wrong frame the moment we swap. The cache route is safe.)
+        if (items.length > 1) preloadToCache(items[1]);
+        scheduleAdvance();
+      } catch (err) {
+        console.error(err);
+        const msg = err.message || 'Failed to load album.';
+        // If the user is coming from the landing (no album showing yet),
+        // keep them there with an inline error rather than dumping them
+        // onto a black screen with just a status pill.
+        if (!state.shareId) {
+          // Drop the bad hash so they can edit and try again.
+          history.replaceState(null, '', location.pathname + location.search);
+          showLanding(msg);
+        } else {
+          setStatus(msg, { error: true });
+        }
+      }
+    }
+
+    // ============================================================
+    // URL hash — supports share=, duration=, order=
+    // ============================================================
+    function getHashParams() {
+      // The hash includes the leading '#'; strip it before feeding URLSearchParams.
+      return new URLSearchParams(location.hash.replace(/^#/, ''));
+    }
+    function setHashParams(params, { replace = false } = {}) {
+      const str = params.toString();
+      const nextHash = str ? '#' + str : '';
+      if (replace) {
+        history.replaceState(null, '', location.pathname + location.search + nextHash);
+      } else {
+        // Direct assignment so a hashchange event fires.
+        location.hash = nextHash || '';
+      }
+    }
+    function shareIdFromHash() {
+      const v = getHashParams().get('share');
+      return v && /^[a-z0-9]+$/i.test(v) ? v : null;
+    }
+    function durationFromHash() {
+      const v = getHashParams().get('duration');
+      const n = v == null ? NaN : Number(v);
+      if (!isFinite(n) || n <= 0) return null;
+      return Math.round(n * 1000);   // accept seconds in URL for readability
+    }
+    function orderFromHash() {
+      const v = getHashParams().get('order');
+      return ALLOWED_ORDERS.has(v) ? v : null;
+    }
+    function navigate(shareId) {
+      const params = getHashParams();
+      params.set('share', shareId);
+      setHashParams(params);   // triggers hashchange → loadAlbum
+    }
+    window.addEventListener('hashchange', () => {
+      const id = shareIdFromHash();
+      if (id) {
+        loadAlbum(id);
+      } else {
+        // Hash was cleared (e.g. user hit back) — return to the landing.
+        clearTimer();
+        slides.forEach((s) => s.classList.remove('is-active'));
+        state.shareId = null;
+        state.items = [];
+        showLanding();
+      }
+    });
+
+    // ============================================================
+    // Idle / cursor hide
+    // ============================================================
+    let idleTimer = null;
+    function bumpIdle() {
+      document.body.classList.remove('is-idle');
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => document.body.classList.add('is-idle'), IDLE_MS);
+    }
+    ['mousemove', 'mousedown', 'keydown', 'touchstart'].forEach((evt) => {
+      window.addEventListener(evt, bumpIdle, { passive: true });
+    });
+
+    // ============================================================
+    // Fullscreen
+    // ============================================================
+    function toggleFullscreen() {
+      const el = document.documentElement;
+      if (!document.fullscreenElement) {
+        (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+      }
+    }
+
+    // ============================================================
+    // Wiring
+    // ============================================================
+    dom.prev.addEventListener('click', () => manualStep(-1));
+    dom.next.addEventListener('click', () => manualStep(1));
+    dom.play.addEventListener('click', togglePlaying);
+    dom.fs.addEventListener('click', toggleFullscreen);
+
+    // Accept either a bare share id ("o6iuqiu78tj7") or a pasted full URL
+    // like "https://jottacloud.com/share/o6iuqiu78tj7" — pull the id from
+    // the last path segment in that case.
+    function parseShareId(raw) {
+      const trimmed = raw.trim();
+      const urlMatch = trimmed.match(/share\/([a-z0-9]+)/i);
+      if (urlMatch) return urlMatch[1];
+      return trimmed;
+    }
+
+    dom.picker.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = parseShareId(dom.input.value);
+      if (id) navigate(id);
+      dom.input.blur();
+    });
+
+    dom.landingForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const raw = dom.landingInput.value;
+      const id = parseShareId(raw);
+      if (!id) {
+        dom.landingError.textContent = 'Please paste a share link or ID.';
+        return;
+      }
+      dom.landingError.textContent = '';
+      navigate(id);
+    });
+
+    // ============================================================
+    // Settings: duration & order (UI ↔ state ↔ localStorage ↔ URL)
+    // ============================================================
+    function readStoredDuration() {
+      try {
+        const raw = localStorage.getItem(LS_DURATION);
+        const n = Number(raw);
+        if (isFinite(n) && n > 0) return n;
+      } catch (_) { /* private mode / disabled — ignore */ }
+      return null;
+    }
+    function readStoredOrder() {
+      try {
+        const v = localStorage.getItem(LS_ORDER);
+        return ALLOWED_ORDERS.has(v) ? v : null;
+      } catch (_) { return null; }
+    }
+    function persist(key, value) {
+      try { localStorage.setItem(key, String(value)); } catch (_) {}
+    }
+
+    // Match a duration to the closest preset so the dropdown can always
+    // display the user's value even if it came from a custom URL param.
+    function nearestPresetMs(ms) {
+      const sec = ms / 1000;
+      let best = ALLOWED_DURATIONS_S[0];
+      let bestDiff = Math.abs(sec - best);
+      for (const s of ALLOWED_DURATIONS_S) {
+        const d = Math.abs(sec - s);
+        if (d < bestDiff) { best = s; bestDiff = d; }
+      }
+      return best * 1000;
+    }
+
+    dom.durationSelect.addEventListener('change', () => {
+      const sec = Number(dom.durationSelect.value);
+      const ms = sec * 1000;
+      applyDuration(ms);
+      persist(LS_DURATION, ms);
+      // Reflect in URL so a refresh keeps the value and the URL is shareable.
+      const params = getHashParams();
+      params.set('duration', String(sec));
+      setHashParams(params, { replace: true });
+      // If a slide is showing, restart the timer so the new cadence kicks in
+      // immediately rather than after the old timer finishes.
+      if (state.items.length && state.playing) scheduleAdvance();
+    });
+
+    dom.orderSelect.addEventListener('change', () => {
+      const order = dom.orderSelect.value;
+      if (!ALLOWED_ORDERS.has(order)) return;
+      applyOrder(order);
+      persist(LS_ORDER, order);
+      const params = getHashParams();
+      params.set('order', order);
+      setHashParams(params, { replace: true });
+      // No need to restart playback — applyOrder kept the current photo as
+      // current, so the next scheduled advance just lands somewhere new.
+    });
+
+    document.addEventListener('keydown', (e) => {
+      // Don't hijack typing in the share-id box.
+      if (e.target instanceof HTMLInputElement) return;
+      switch (e.key) {
+        case ' ':       e.preventDefault(); togglePlaying(); break;
+        case 'ArrowLeft':  manualStep(-1); break;
+        case 'ArrowRight': manualStep(1);  break;
+        case 'f':
+        case 'F':       toggleFullscreen(); break;
+      }
+    });
+
+    // Pause when the tab is hidden — saves CPU and stops a 1000-photo album
+    // from spinning behind a closed laptop.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) clearTimer();
+      else if (state.playing) scheduleAdvance();
+    });
+
+    // ============================================================
+    // Boot
+    // ============================================================
+    bumpIdle();
+
+    // Resolve initial settings: URL > localStorage > defaults. Apply them
+    // before loadAlbum so the very first crossfade uses the right cadence.
+    (function initSettings() {
+      const ms = durationFromHash() || readStoredDuration() || DEFAULT_SLIDE_MS;
+      applyDuration(ms);
+      // Round to the nearest preset for the dropdown display, but keep the
+      // exact ms in state so a custom URL param value still drives playback.
+      dom.durationSelect.value = String(nearestPresetMs(ms) / 1000);
+
+      const order = orderFromHash() || readStoredOrder() || DEFAULT_ORDER;
+      state.order = order;          // applyOrder is called later when we have items
+      dom.orderSelect.value = order;
+    })();
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const initial = shareIdFromHash();
+      if (initial) loadAlbum(initial);
+      else showLanding();
+    });
+  </script>
+</body>
+</html>
