@@ -402,6 +402,9 @@
       height: 22px;
       width: auto;
     }
+    /* Tint the wordmark light. CSS fill wins over the SVG's presentation
+       attribute, so we don't need to edit each <path>. */
+    .powered-by svg path { fill: #EFEFEF; }
     @media (max-width: 480px) {
       .powered-by {
         right: 12px;
@@ -890,14 +893,54 @@
     }
 
     // ============================================================
+    // Screen Wake Lock
+    // ============================================================
+    // Hold a Screen Wake Lock while the slideshow is playing so the display
+    // doesn't dim or turn off — useful for unattended displays / kiosks.
+    // The browser auto-releases when the tab becomes hidden, so we re-
+    // acquire on visibilitychange (handled below). Silently no-ops on
+    // browsers that don't support the API (Firefox before recent versions,
+    // older Safari).
+    let wakeLock = null;
+
+    async function acquireWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      if (wakeLock) return;
+      // Wake lock can only be requested while the document is visible.
+      if (document.visibilityState !== 'visible') return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        // Browser may release on its own (e.g. user switches apps); clear
+        // our reference so a future acquire actually fires a new request.
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (err) {
+        // NotAllowedError can happen if the page lost focus mid-request.
+        // Not fatal — playback continues, screen may sleep.
+        console.warn('Wake lock unavailable:', err.name);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (!wakeLock) return;
+      const w = wakeLock;
+      wakeLock = null;
+      try { await w.release(); } catch (_) { /* already released */ }
+    }
+
+    // ============================================================
     // Playback controls
     // ============================================================
     function setPlaying(playing) {
       state.playing = playing;
       dom.controls.dataset.playing = String(playing);
       dom.play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-      if (playing) scheduleAdvance();
-      else clearTimer();
+      if (playing) {
+        scheduleAdvance();
+        acquireWakeLock();
+      } else {
+        clearTimer();
+        releaseWakeLock();
+      }
     }
 
     function togglePlaying() { setPlaying(!state.playing); }
@@ -956,6 +999,7 @@
         // wrong frame the moment we swap. The cache route is safe.)
         if (items.length > 1) preloadToCache(items[1]);
         scheduleAdvance();
+        if (state.playing) acquireWakeLock();
       } catch (err) {
         console.error(err);
         const msg = err.message || 'Failed to load album.';
@@ -1157,10 +1201,17 @@
     });
 
     // Pause when the tab is hidden — saves CPU and stops a 1000-photo album
-    // from spinning behind a closed laptop.
+    // from spinning behind a closed laptop. Also re-acquire the wake lock
+    // when we come back, since the browser auto-released it on hide.
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) clearTimer();
-      else if (state.playing) scheduleAdvance();
+      if (document.hidden) {
+        clearTimer();
+        // Don't bother explicitly releasing — the browser already did.
+        wakeLock = null;
+      } else if (state.playing) {
+        scheduleAdvance();
+        if (state.items.length) acquireWakeLock();
+      }
     });
 
     // ============================================================
